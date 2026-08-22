@@ -16,7 +16,14 @@ from superbot_api.domain.models import (
     TaskEventRecord,
     TaskRead,
 )
-from superbot_api.persistence.tables import ApprovalTable, BotTable, TaskEventTable, TaskTable
+from superbot_api.persistence.tables import (
+    ApprovalTable,
+    BotTable,
+    ConversationTable,
+    MessageTable,
+    TaskEventTable,
+    TaskTable,
+)
 
 
 class RepositoryError(RuntimeError):
@@ -64,6 +71,14 @@ class BotRepository:
             raise NotFoundError(f"bot {bot_id} was not found")
         return self._to_read(row)
 
+    async def archive(self, bot_id: UUID) -> None:
+        row = await self.session.get(BotTable, bot_id)
+        if row is None:
+            raise NotFoundError(f"bot {bot_id} was not found")
+        row.archived = True
+        row.version += 1
+        await self.session.commit()
+
     @staticmethod
     def _to_read(row: BotTable) -> BotRead:
         return BotRead(
@@ -89,7 +104,10 @@ class TaskRepository:
     async def create(self, command: TaskCreate) -> TaskRead:
         if command.idempotency_key:
             existing = await self.session.scalar(
-                select(TaskTable).where(TaskTable.idempotency_key == command.idempotency_key)
+                select(TaskTable).where(
+                    TaskTable.bot_id == command.bot_id,
+                    TaskTable.idempotency_key == command.idempotency_key,
+                )
             )
             if existing is not None:
                 return self._to_read(existing)
@@ -112,6 +130,39 @@ class TaskRepository:
         row = await self.session.get(TaskTable, task_id)
         if row is None:
             raise NotFoundError(f"task {task_id} was not found")
+        return self._to_read(row)
+
+    async def find_by_idempotency_key(self, bot_id: UUID, key: str) -> TaskRead | None:
+        row = await self.session.scalar(
+            select(TaskTable).where(
+                TaskTable.bot_id == bot_id, TaskTable.idempotency_key == key
+            )
+        )
+        return self._to_read(row) if row is not None else None
+
+    async def cancel(self, task_id: UUID) -> TaskRead:
+        row = await self.session.get(TaskTable, task_id)
+        if row is None:
+            raise NotFoundError(f"task {task_id} was not found")
+        if row.status in {
+            TaskStatus.SUCCEEDED.value,
+            TaskStatus.FAILED.value,
+            TaskStatus.CANCELLED.value,
+        }:
+            if row.status == TaskStatus.CANCELLED.value:
+                return self._to_read(row)
+            raise ConflictError(f"task {task_id} is already terminal")
+        row.cancel_requested = True
+        row.status = TaskStatus.CANCELLED.value
+        row.version += 1
+        event = TaskEventTable(
+            task_id=task_id,
+            type=TaskEventType.CANCELLED.value,
+            payload={"reason": "requested_by_user"},
+        )
+        self.session.add(event)
+        await self.session.commit()
+        await self.session.refresh(row)
         return self._to_read(row)
 
     async def append_event(
@@ -227,3 +278,33 @@ class ApprovalRepository:
             decided_at=row.decided_at,
             created_at=row.created_at,
         )
+
+
+class ConversationRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def create_with_message(
+        self,
+        *,
+        bot_id: UUID,
+        content: str,
+        attachment_ids: list[UUID],
+    ) -> tuple[UUID, UUID]:
+        if await self.session.get(BotTable, bot_id) is None:
+            raise NotFoundError(f"bot {bot_id} was not found")
+        conversation = ConversationTable(
+            bot_id=bot_id,
+            title=content.strip().replace("\n", " ")[:80] or "New conversation",
+        )
+        self.session.add(conversation)
+        await self.session.flush()
+        message = MessageTable(
+            conversation_id=conversation.id,
+            role="user",
+            content=content,
+            attachment_ids=[str(item) for item in attachment_ids],
+        )
+        self.session.add(message)
+        await self.session.commit()
+        return conversation.id, message.id

@@ -4,7 +4,18 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -36,8 +47,34 @@ class BotTable(TimestampMixin, Base):
     version: Mapped[int] = mapped_column(Integer, default=1)
 
 
+class ConversationTable(TimestampMixin, Base):
+    __tablename__ = "conversations"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    bot_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("bots.id", ondelete="CASCADE"), index=True
+    )
+    title: Mapped[str] = mapped_column(String(200), default="New conversation")
+
+
+class MessageTable(Base):
+    __tablename__ = "messages"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    conversation_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("conversations.id", ondelete="CASCADE"), index=True
+    )
+    role: Mapped[str] = mapped_column(String(24))
+    content: Mapped[str] = mapped_column(Text)
+    attachment_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class TaskTable(TimestampMixin, Base):
     __tablename__ = "tasks"
+    __table_args__ = (UniqueConstraint("bot_id", "idempotency_key"),)
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     bot_id: Mapped[UUID] = mapped_column(Uuid, index=True)
@@ -50,9 +87,7 @@ class TaskTable(TimestampMixin, Base):
     max_steps: Mapped[int] = mapped_column(Integer, default=24)
     budget_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
     spent_usd: Mapped[float] = mapped_column(Float, default=0)
-    idempotency_key: Mapped[str | None] = mapped_column(
-        String(200), nullable=True, unique=True, index=True
-    )
+    idempotency_key: Mapped[str | None] = mapped_column(String(200), nullable=True, index=True)
     lease_owner: Mapped[str | None] = mapped_column(String(160), nullable=True)
     lease_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

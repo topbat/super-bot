@@ -30,6 +30,31 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_table(
+        "conversations",
+        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("bot_id", sa.Uuid(), nullable=False),
+        sa.Column("title", sa.String(200), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.ForeignKeyConstraint(["bot_id"], ["bots.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("ix_conversations_bot_id", "conversations", ["bot_id"])
+    op.create_table(
+        "messages",
+        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("conversation_id", sa.Uuid(), nullable=False),
+        sa.Column("role", sa.String(24), nullable=False),
+        sa.Column("content", sa.Text(), nullable=False),
+        sa.Column("attachment_ids", sa.JSON(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.ForeignKeyConstraint(
+            ["conversation_id"], ["conversations.id"], ondelete="CASCADE"
+        ),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("ix_messages_conversation_id", "messages", ["conversation_id"])
+    op.create_table(
         "tasks",
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("bot_id", sa.Uuid(), nullable=False),
@@ -51,7 +76,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("idempotency_key"),
+        sa.UniqueConstraint("bot_id", "idempotency_key"),
     )
     op.create_index("ix_tasks_bot_id", "tasks", ["bot_id"])
     op.create_index("ix_tasks_status", "tasks", ["status"])
@@ -89,4 +114,6 @@ def downgrade() -> None:
     op.drop_table("approvals")
     op.drop_table("task_events")
     op.drop_table("tasks")
+    op.drop_table("messages")
+    op.drop_table("conversations")
     op.drop_table("bots")
