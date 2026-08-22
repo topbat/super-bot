@@ -1,28 +1,36 @@
-import { Avatar, Button, Tooltip } from "@fluentui/react-components";
-import {
-  CalendarDots,
-  ChatsCircle,
-  GearSix,
-  Plus,
-  PuzzlePiece,
-  Robot,
-  ShieldCheck,
-} from "@phosphor-icons/react";
+import { Avatar } from "@fluentui/react-avatar";
+import { Button } from "@fluentui/react-button";
+import { Tooltip } from "@fluentui/react-tooltip";
+import { CalendarDots } from "@phosphor-icons/react/dist/csr/CalendarDots";
+import { ChatsCircle } from "@phosphor-icons/react/dist/csr/ChatsCircle";
+import { Cpu } from "@phosphor-icons/react/dist/csr/Cpu";
+import { Database } from "@phosphor-icons/react/dist/csr/Database";
+import { GearSix } from "@phosphor-icons/react/dist/csr/GearSix";
+import { ListChecks } from "@phosphor-icons/react/dist/csr/ListChecks";
+import { Plus } from "@phosphor-icons/react/dist/csr/Plus";
+import { PuzzlePiece } from "@phosphor-icons/react/dist/csr/PuzzlePiece";
+import { Robot } from "@phosphor-icons/react/dist/csr/Robot";
+import { ShieldCheck } from "@phosphor-icons/react/dist/csr/ShieldCheck";
 
 import type { Bot } from "@superbot/contracts";
 
 interface SidebarProps {
   bots: Bot[];
+  activeSection?: string;
+  onSectionChange?: (section: string) => void;
 }
 
 const sections = [
-  [ChatsCircle, "对话"],
-  [CalendarDots, "例行任务"],
-  [PuzzlePiece, "技能"],
-  [ShieldCheck, "审批中心"],
+  [ChatsCircle, "对话", "chat"],
+  [CalendarDots, "例行任务", "routines"],
+  [PuzzlePiece, "技能", "skills"],
+  [ShieldCheck, "审批中心", "approvals"],
+  [Cpu, "模型中心", "models"],
+  [ListChecks, "审计记录", "audit"],
+  [Database, "Worker", "workers"],
 ] as const;
 
-export function Sidebar({ bots }: SidebarProps) {
+export function Sidebar({ bots, activeSection = "chat", onSectionChange }: SidebarProps) {
   return (
     <nav className="sidebar" aria-label="主导航">
       <div className="brand-row">
@@ -31,12 +39,13 @@ export function Sidebar({ bots }: SidebarProps) {
       </div>
 
       <div className="nav-section" aria-label="工作区">
-        {sections.map(([Icon, label], index) => (
+        {sections.map(([Icon, label, id]) => (
           <Button
             key={label}
-            appearance={index === 0 ? "subtle" : "transparent"}
+            appearance={activeSection === id ? "subtle" : "transparent"}
             icon={<Icon />}
-            className={index === 0 ? "nav-item nav-item-active" : "nav-item"}
+            className={activeSection === id ? "nav-item nav-item-active" : "nav-item"}
+            onClick={() => onSectionChange?.(id)}
           >
             {label}
           </Button>

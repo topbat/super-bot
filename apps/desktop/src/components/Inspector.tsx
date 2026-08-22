@@ -1,5 +1,10 @@
-import { Badge, Button, Divider, ProgressBar } from "@fluentui/react-components";
-import { CheckCircle, Clock, SidebarSimple } from "@phosphor-icons/react";
+import { Badge } from "@fluentui/react-badge";
+import { Button } from "@fluentui/react-button";
+import { Divider } from "@fluentui/react-divider";
+import { ProgressBar } from "@fluentui/react-progress";
+import { CheckCircle } from "@phosphor-icons/react/dist/csr/CheckCircle";
+import { Clock } from "@phosphor-icons/react/dist/csr/Clock";
+import { SidebarSimple } from "@phosphor-icons/react/dist/csr/SidebarSimple";
 
 import type { Bot } from "@superbot/contracts";
 

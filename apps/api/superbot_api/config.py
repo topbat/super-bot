@@ -23,10 +23,11 @@ class Settings(BaseSettings):
     s3_secret_key_ref: str = "env:SUPERBOT_S3_SECRET_KEY"
     api_host: str = "127.0.0.1"
     api_port: int = Field(default=8420, ge=1, le=65535)
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+    cors_origins: list[str] = Field(
+        default_factory=lambda: ["superbot://app", "http://localhost:5173"]
+    )
 
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-

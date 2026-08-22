@@ -1,8 +1,29 @@
-import { join } from "node:path";
+import { join, relative, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
-import { app, BrowserWindow, shell } from "electron";
+import { app, BrowserWindow, net, protocol, shell } from "electron";
 
 const isDevelopment = !app.isPackaged;
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "superbot",
+    privileges: { standard: true, secure: true, supportFetchAPI: true },
+  },
+]);
+
+function registerRendererProtocol(): void {
+  const rendererRoot = resolve(__dirname, "../renderer");
+  protocol.handle("superbot", (request) => {
+    const pathname = decodeURIComponent(new URL(request.url).pathname);
+    const target = resolve(rendererRoot, pathname === "/" ? "index.html" : pathname.slice(1));
+    const relativeTarget = relative(rendererRoot, target);
+    if (relativeTarget.startsWith("..") || relativeTarget.includes(":")) {
+      return new Response("Not found", { status: 404 });
+    }
+    return net.fetch(pathToFileURL(target).toString());
+  });
+}
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -30,11 +51,12 @@ function createWindow(): void {
   if (isDevelopment && process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {
-    void window.loadFile(join(__dirname, "../renderer/index.html"));
+    void window.loadURL("superbot://app/");
   }
 }
 
 app.whenReady().then(() => {
+  registerRendererProtocol();
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

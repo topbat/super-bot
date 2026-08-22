@@ -1,4 +1,4 @@
-import { createLightTheme, createDarkTheme, type BrandVariants } from "@fluentui/react-components";
+import { createDarkTheme, createLightTheme, type BrandVariants } from "@fluentui/react-theme";
 
 const superBotBrand: BrandVariants = {
   10: "#020305",
