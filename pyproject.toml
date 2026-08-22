@@ -18,6 +18,7 @@ dependencies = [
   "pyyaml>=6.0.2",
   "redis>=6.4.0",
   "sqlalchemy[asyncio]>=2.0.43",
+  "tzdata>=2026.3",
   "uvicorn[standard]>=0.35.0",
 ]
 
