@@ -1,0 +1,41 @@
+.worktrees/
+
+# Node and desktop builds
+node_modules/
+dist/
+release/
+out/
+.vite/
+coverage/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+
+# Runtime data and secrets
+.env
+.env.*
+!.env.example
+data/
+artifacts/
+*.db
+*.sqlite
+*.sqlite3
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
