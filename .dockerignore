@@ -1,0 +1,11 @@
+.git
+.worktrees
+.venv
+node_modules
+**/node_modules
+**/out
+**/dist
+.pytest_cache
+data
+*.sqlite
+.env
