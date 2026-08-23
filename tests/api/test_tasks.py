@@ -47,9 +47,7 @@ async def test_idempotency_keys_are_scoped_to_a_bot(api_client, bot_payload) -> 
 async def test_task_can_be_cancelled_and_emits_replayable_sse(api_client, bot_payload) -> None:
     bot = await create_bot(api_client, bot_payload)
     task = (
-        await api_client.post(
-            f"/api/v1/bots/{bot['id']}/messages", json={"content": "Stop me"}
-        )
+        await api_client.post(f"/api/v1/bots/{bot['id']}/messages", json={"content": "Stop me"})
     ).json()
 
     cancelled = await api_client.post(f"/api/v1/tasks/{task['id']}/cancel")

@@ -21,9 +21,7 @@ class WorkerRead(BaseModel):
 
 @router.get("", response_model=list[WorkerRead])
 async def list_workers(session: SessionDep) -> list[WorkerRead]:
-    rows = (
-        await session.scalars(select(WorkerTable).order_by(WorkerTable.id))
-    ).all()
+    rows = (await session.scalars(select(WorkerTable).order_by(WorkerTable.id))).all()
     stale_before = datetime.now(UTC) - timedelta(seconds=30)
     result = []
     for row in rows:

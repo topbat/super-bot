@@ -28,6 +28,7 @@
 def test_expected_service_packages_are_importable():
     import superbot_api
     import superbot_worker
+
     assert superbot_api.__version__ == superbot_worker.__version__
 ```
 
@@ -68,6 +69,7 @@ git commit -m "build: scaffold super bot workspace"
 ```python
 def test_approval_pause_can_resume_to_running():
     assert transition(TaskStatus.WAITING_APPROVAL, TaskEvent.APPROVED) is TaskStatus.RUNNING
+
 
 def test_terminal_task_rejects_new_work():
     with pytest.raises(InvalidTransition):

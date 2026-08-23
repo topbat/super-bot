@@ -2,6 +2,7 @@ import { Avatar } from "@fluentui/react-avatar";
 import { Button } from "@fluentui/react-button";
 import { Tooltip } from "@fluentui/react-tooltip";
 import { CalendarDots } from "@phosphor-icons/react/dist/csr/CalendarDots";
+import { Browser } from "@phosphor-icons/react/dist/csr/Browser";
 import { ChatsCircle } from "@phosphor-icons/react/dist/csr/ChatsCircle";
 import { Cpu } from "@phosphor-icons/react/dist/csr/Cpu";
 import { Database } from "@phosphor-icons/react/dist/csr/Database";
@@ -25,6 +26,7 @@ interface SidebarProps {
 
 const sections = [
   [ChatsCircle, "对话", "chat"],
+  [Browser, "浏览器", "browser"],
   [CalendarDots, "例行任务", "routines"],
   [PuzzlePiece, "技能", "skills"],
   [ShieldCheck, "审批中心", "approvals"],

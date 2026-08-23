@@ -30,8 +30,7 @@ class PolicyRule(BaseModel):
         if self.bot_id is not None and self.bot_id != invocation.bot_id:
             return False
         return all(
-            invocation.arguments.get(key) == value
-            for key, value in self.argument_equals.items()
+            invocation.arguments.get(key) == value for key, value in self.argument_equals.items()
         )
 
 

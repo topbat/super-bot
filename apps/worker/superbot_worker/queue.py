@@ -59,9 +59,7 @@ class InMemoryDurableQueue:
         item = self._items[item_id]
         if item.leased_by != worker_id:
             raise PermissionError("only the lease owner can extend a lease")
-        item.lease_expires_at = (now or datetime.now(UTC)) + timedelta(
-            seconds=lease_seconds
-        )
+        item.lease_expires_at = (now or datetime.now(UTC)) + timedelta(seconds=lease_seconds)
 
     def acknowledge(self, item_id: str, worker_id: str) -> None:
         item = self._items[item_id]
@@ -89,9 +87,7 @@ class RedisStreamQueue:
         self.stream = stream
 
     async def enqueue(self, item_id: str, payload_json: str) -> str:
-        return await self.redis.xadd(
-            self.stream, {"item_id": item_id, "payload": payload_json}
-        )
+        return await self.redis.xadd(self.stream, {"item_id": item_id, "payload": payload_json})
 
     async def ensure_group(self, group: str) -> None:
         try:

@@ -96,6 +96,4 @@ async def test_approval_can_only_be_decided_once(repositories) -> None:
 
     assert decided.status is ApprovalStatus.APPROVED
     with pytest.raises(ConflictError, match="already decided"):
-        await approvals.decide(
-            approval.id, status=ApprovalStatus.DENIED, decided_by="local-user"
-        )
+        await approvals.decide(approval.id, status=ApprovalStatus.DENIED, decided_by="local-user")

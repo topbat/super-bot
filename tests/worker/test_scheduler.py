@@ -51,9 +51,7 @@ def test_stale_queue_lease_is_recovered() -> None:
     recovered = queue.recover_stale(now=now + timedelta(seconds=31))
 
     assert recovered == ["task-1"]
-    assert queue.lease(
-        "worker-b", now=now + timedelta(seconds=31), lease_seconds=30
-    ).id == "task-1"
+    assert queue.lease("worker-b", now=now + timedelta(seconds=31), lease_seconds=30).id == "task-1"
 
 
 @pytest.mark.asyncio
@@ -94,9 +92,7 @@ async def test_due_routine_creates_one_auditable_task(tmp_path) -> None:
             routine = await session.get(RoutineTable, routine_id)
 
         assert len(tasks) == 1
-        assert tasks[0].idempotency_key == routine_idempotency_key(
-            routine_id, occurrence
-        )
+        assert tasks[0].idempotency_key == routine_idempotency_key(routine_id, occurrence)
         assert tasks[0].model_id == "qwen3.7-plus"
         assert events[0].type == "created"
         assert events[0].payload["source"] == "routine"

@@ -24,9 +24,7 @@ async def test_health_and_bot_crud(api_client, bot_payload) -> None:
 
 
 async def test_missing_bot_returns_problem_details(api_client) -> None:
-    response = await api_client.get(
-        "/api/v1/bots/00000000-0000-0000-0000-000000000999"
-    )
+    response = await api_client.get("/api/v1/bots/00000000-0000-0000-0000-000000000999")
 
     assert response.status_code == 404
     assert response.headers["content-type"].startswith("application/problem+json")

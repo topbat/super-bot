@@ -18,9 +18,7 @@ router = APIRouter(prefix="/bots", tags=["bots"])
 
 
 @router.post("", response_model=BotRead, status_code=status.HTTP_201_CREATED)
-async def create_bot(
-    command: BotCreate, session: SessionDep
-) -> BotRead:
+async def create_bot(command: BotCreate, session: SessionDep) -> BotRead:
     return await BotRepository(session).create(command)
 
 

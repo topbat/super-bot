@@ -20,9 +20,7 @@ from superbot_api.domain.task_state import InvalidTransition, transition
         (TaskStatus.FAILED, TaskEventType.RETRY_REQUESTED, TaskStatus.QUEUED),
     ],
 )
-def test_valid_transitions(
-    current: TaskStatus, event: TaskEventType, expected: TaskStatus
-) -> None:
+def test_valid_transitions(current: TaskStatus, event: TaskEventType, expected: TaskStatus) -> None:
     assert transition(current, event) is expected
 
 
@@ -38,4 +36,3 @@ def test_terminal_task_rejects_new_work(terminal: TaskStatus) -> None:
 def test_failed_task_only_allows_retry() -> None:
     with pytest.raises(InvalidTransition):
         transition(TaskStatus.FAILED, TaskEventType.COMPLETED)
-

@@ -116,4 +116,3 @@ def built_in_catalog() -> ModelCatalog:
         ),
     ]
     return ModelCatalog(models)
-

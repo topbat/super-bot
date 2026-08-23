@@ -67,9 +67,7 @@ class MessageTable(Base):
     role: Mapped[str] = mapped_column(String(24))
     content: Mapped[str] = mapped_column(Text)
     attachment_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class TaskTable(TimestampMixin, Base):
@@ -83,9 +81,7 @@ class TaskTable(TimestampMixin, Base):
     conversation_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("conversations.id", ondelete="CASCADE"), index=True
     )
-    message_id: Mapped[UUID] = mapped_column(
-        Uuid, ForeignKey("messages.id", ondelete="CASCADE")
-    )
+    message_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("messages.id", ondelete="CASCADE"))
     parent_task_id: Mapped[UUID | None] = mapped_column(
         Uuid, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -147,9 +143,7 @@ class ArtifactTable(Base):
     sha256: Mapped[str] = mapped_column(String(64))
     storage_key: Mapped[str] = mapped_column(String(1000))
     kind: Mapped[str] = mapped_column(String(24), default="output")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class UsageTable(Base):
@@ -165,9 +159,7 @@ class UsageTable(Base):
     cached_tokens: Mapped[int] = mapped_column(Integer, default=0)
     cost_usd: Mapped[float] = mapped_column(Float, default=0)
     provider_request_id: Mapped[str | None] = mapped_column(String(240), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class SkillTable(TimestampMixin, Base):
@@ -195,9 +187,7 @@ class RoutineTable(TimestampMixin, Base):
     prompt: Mapped[str] = mapped_column(Text)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     next_run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
-    last_run_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class WorkerTable(Base):
@@ -209,3 +199,32 @@ class WorkerTable(Base):
     hostname: Mapped[str] = mapped_column(String(240))
     capabilities: Mapped[list[str]] = mapped_column(JSON, default=list)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class BrowserSessionTable(TimestampMixin, Base):
+    __tablename__ = "browser_sessions"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    bot_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("bots.id", ondelete="CASCADE"), index=True
+    )
+    status: Mapped[str] = mapped_column(String(24), default="active", index=True)
+    current_url: Mapped[str] = mapped_column(String(4096), default="about:blank")
+    title: Mapped[str] = mapped_column(String(500), default="")
+    allowed_domains: Mapped[list[str]] = mapped_column(JSON, default=list)
+    viewport_width: Mapped[int] = mapped_column(Integer, default=1280)
+    viewport_height: Mapped[int] = mapped_column(Integer, default=720)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class BrowserActionTable(Base):
+    __tablename__ = "browser_actions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    session_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("browser_sessions.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(24), index=True)
+    arguments: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    result_url: Mapped[str] = mapped_column(String(4096))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

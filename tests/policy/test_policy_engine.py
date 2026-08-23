@@ -6,12 +6,8 @@ from superbot_api.domain.enums import RiskLevel, ToolDecision
 from superbot_api.policy.engine import PolicyEngine, PolicyRule, ToolInvocation
 
 
-def invocation(
-    tool_name: str, risk: RiskLevel, *, arguments: dict | None = None
-) -> ToolInvocation:
-    return ToolInvocation(
-        bot_id=uuid4(), tool_name=tool_name, risk=risk, arguments=arguments or {}
-    )
+def invocation(tool_name: str, risk: RiskLevel, *, arguments: dict | None = None) -> ToolInvocation:
+    return ToolInvocation(bot_id=uuid4(), tool_name=tool_name, risk=risk, arguments=arguments or {})
 
 
 def test_read_tools_are_allowed_by_default() -> None:
@@ -60,9 +56,7 @@ def test_allow_rule_can_be_narrowed_by_arguments() -> None:
     )
 
     allowed = engine.evaluate(
-        invocation(
-            "git.status", RiskLevel.WRITE, arguments={"workspace": "/workspace/reports"}
-        )
+        invocation("git.status", RiskLevel.WRITE, arguments={"workspace": "/workspace/reports"})
     )
     outside_scope = engine.evaluate(
         invocation("git.status", RiskLevel.WRITE, arguments={"workspace": "/workspace/app"})
@@ -73,12 +67,9 @@ def test_allow_rule_can_be_narrowed_by_arguments() -> None:
 
 
 def test_critical_action_cannot_be_permanently_allowed() -> None:
-    engine = PolicyEngine(
-        [PolicyRule(effect=ToolDecision.ALLOW, tool_pattern="payments.transfer")]
-    )
+    engine = PolicyEngine([PolicyRule(effect=ToolDecision.ALLOW, tool_pattern="payments.transfer")])
 
     result = engine.evaluate(invocation("payments.transfer", RiskLevel.CRITICAL))
 
     assert result.decision is ToolDecision.REQUIRE_APPROVAL
     assert "critical" in result.reason
-

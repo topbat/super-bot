@@ -51,4 +51,3 @@ else:
     import asyncio
 
     asyncio.run(run_async_migrations())
-

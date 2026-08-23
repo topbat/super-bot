@@ -1,0 +1,10 @@
+FROM mcr.microsoft.com/playwright:v1.61.0-noble
+
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+RUN npm install --global --omit=dev playwright@1.61.0 \
+    && npm cache clean --force
+
+USER pwuser
+WORKDIR /home/pwuser
+ENTRYPOINT ["playwright"]
+CMD ["run-server", "--port", "3000", "--host", "0.0.0.0"]

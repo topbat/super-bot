@@ -10,6 +10,7 @@ x-app-environment: &app-environment
   SUPERBOT_S3_SECRET_KEY_REF: env:SUPERBOT_S3_SECRET_KEY
   SUPERBOT_S3_ACCESS_KEY: ${S3_ACCESS_KEY:?set S3_ACCESS_KEY}
   SUPERBOT_S3_SECRET_KEY: ${S3_SECRET_KEY:?set S3_SECRET_KEY}
+  SUPERBOT_BROWSER_GATEWAY_URL: http://browser-worker:8430
   SUPERBOT_DASHSCOPE_API_KEY: ${SUPERBOT_DASHSCOPE_API_KEY:-}
   SUPERBOT_DEEPSEEK_API_KEY: ${SUPERBOT_DEEPSEEK_API_KEY:-}
   SUPERBOT_MOONSHOT_API_KEY: ${SUPERBOT_MOONSHOT_API_KEY:-}
@@ -154,15 +155,49 @@ services:
     environment:
       <<: *app-environment
       SUPERBOT_WORKER_ROLE: browser
+      SUPERBOT_PLAYWRIGHT_WS_ENDPOINT: ws://playwright-server:3000/
+      SUPERBOT_BROWSER_GATEWAY_HOST: 0.0.0.0
+      SUPERBOT_BROWSER_GATEWAY_PORT: 8430
+      SUPERBOT_BROWSER_TRUSTED_DNS_PROXY_CIDRS: ${SUPERBOT_BROWSER_TRUSTED_DNS_PROXY_CIDRS:-}
     command: [python, -m, superbot_worker.service, --role, browser]
     depends_on:
       <<: *app-dependencies
       api:
         condition: service_healthy
+      playwright-server:
+        condition: service_healthy
     volumes:
       - bot-workspaces:/workspaces
     healthcheck:
-      test: [CMD, python, -c, "from pathlib import Path; raise SystemExit(not Path('/tmp/superbot-browser.ready').exists())"]
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8430/health', timeout=3)"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+    deploy:
+      resources:
+        limits: {cpus: "2.0", memory: 2G}
+    restart: unless-stopped
+    expose: [8430]
+
+  playwright-server:
+    image: superbot/playwright-server:1.61.0
+    build:
+      context: .
+      dockerfile: Dockerfile.playwright
+    profiles: [browser]
+    init: true
+    user: pwuser
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=1g
+    shm_size: 1gb
+    working_dir: /home/pwuser
+    command: [run-server, --port, "3000", --host, 0.0.0.0]
+    expose: [3000]
+    healthcheck:
+      test: [CMD, node, -e, "const n=require('net').connect(3000,'127.0.0.1');n.on('connect',()=>{n.end();process.exit(0)});n.on('error',()=>process.exit(1))"]
       interval: 10s
       timeout: 3s
       retries: 20

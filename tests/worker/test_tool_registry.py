@@ -44,4 +44,3 @@ async def test_file_write_returns_reviewable_metadata(tmp_path: Path) -> None:
 async def test_http_tool_blocks_private_and_metadata_targets(url: str) -> None:
     with pytest.raises(UnsafeNetworkTarget):
         await HttpReadTool().execute({"url": url})
-

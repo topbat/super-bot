@@ -13,10 +13,11 @@ Super Bot 是一个 Windows 优先、MIT 许可的持久化 AI 同事平台。�
 - 技能版本哈希、IANA 时区 Cron 例程、真实 Scheduler 派发、Worker 心跳。
 - Qwen 3.7、DeepSeek、Kimi、GLM、MiniMax、SiliconFlow、Ollama；只有显式配置的 fallback 才会回退。
 - 产物写入 S3 兼容存储并记录 SHA-256，模型 token 用量写入数据库。
-- Docker Compose：PostgreSQL、Valkey、SeaweedFS、API、Worker、Scheduler，可选 Browser Worker profile。
+- Docker Compose：PostgreSQL、Valkey、SeaweedFS、API、Worker、Scheduler，以及可选的远程 Playwright Server + Browser Gateway profile。
+- 交互浏览器：远程截图、坐标点击、键盘输入、按键、滚动、导航历史、会话关闭、私网阻断和脱敏动作审计。
 - NSIS Windows 安装器；Electron 开启 context isolation、sandbox，关闭 node integration。
 
-浏览器模块已实现 URL/DNS 安全策略、注入式会话和截图钩子；当前容器中的 Browser Worker 是隔离执行角色与心跳基础，尚未接入可交互的 Playwright 远程会话协议。它不会伪装成已完成的网页自动化能力。
+浏览器模块使用与 Python 客户端严格匹配的 Playwright 1.61 远程协议。桌面端只访问 FastAPI，不直接暴露内部 Browser Gateway 或 Playwright WebSocket；浏览器 profile 默认关闭。
 
 ## 快速开始
 
@@ -36,6 +37,14 @@ uv sync --frozen
 ```powershell
 .\scripts\dev.ps1 -NoDesktop
 ```
+
+启用远程交互浏览器：
+
+```powershell
+docker compose --profile browser up -d playwright-server browser-worker
+```
+
+如果 Clash/TUN 的 Fake-IP DNS 把公开域名解析到 `198.18.0.0/15`，在确认该网段确由本机可信 DNS 代理接管后设置 `SUPERBOT_BROWSER_TRUSTED_DNS_PROXY_CIDRS=198.18.0.0/15`；默认留空更安全。
 
 生成 Windows 安装器：
 

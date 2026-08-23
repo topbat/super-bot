@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     s3_secret_key_ref: str = "env:SUPERBOT_S3_SECRET_KEY"
     api_host: str = "127.0.0.1"
     api_port: int = Field(default=8420, ge=1, le=65535)
+    browser_gateway_url: str = "http://127.0.0.1:8430"
+    browser_gateway_host: str = "127.0.0.1"
+    browser_gateway_port: int = Field(default=8430, ge=1, le=65535)
+    playwright_ws_endpoint: str = "ws://127.0.0.1:3000/"
+    browser_trusted_dns_proxy_cidrs: str = ""
     cors_origins: list[str] = Field(
         default_factory=lambda: ["superbot://app", "http://localhost:5173"]
     )

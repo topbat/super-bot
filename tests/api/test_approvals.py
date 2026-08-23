@@ -7,9 +7,7 @@ from superbot_api.domain.models import TaskCreate
 from superbot_api.persistence.repositories import ApprovalRepository, TaskRepository
 
 
-async def test_approval_can_be_listed_and_decided(
-    api_client, bot_payload
-) -> None:
+async def test_approval_can_be_listed_and_decided(api_client, bot_payload) -> None:
     bot = (await api_client.post("/api/v1/bots", json=bot_payload)).json()
     database = api_client._transport.app.state.database
     async with database.sessions() as session:

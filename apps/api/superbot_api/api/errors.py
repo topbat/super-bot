@@ -4,6 +4,7 @@ from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from superbot_api.browser_gateway import BrowserGatewayDenied, BrowserGatewayUnavailable
 from superbot_api.persistence.repositories import ConflictError, NotFoundError
 
 
@@ -42,5 +43,27 @@ async def validation_handler(request: Request, error: RequestValidationError) ->
         status=422,
         slug="validation-error",
         title="Request validation failed",
+        detail=str(error),
+    )
+
+
+async def browser_unavailable_handler(
+    request: Request, error: BrowserGatewayUnavailable
+) -> JSONResponse:
+    return problem_response(
+        request,
+        status=503,
+        slug="browser-unavailable",
+        title="Browser service unavailable",
+        detail=str(error),
+    )
+
+
+async def browser_denied_handler(request: Request, error: BrowserGatewayDenied) -> JSONResponse:
+    return problem_response(
+        request,
+        status=403,
+        slug="browser-target-denied",
+        title="Browser target denied",
         detail=str(error),
     )
