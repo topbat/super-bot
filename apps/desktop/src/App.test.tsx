@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { Bot } from "@superbot/contracts";
 
@@ -59,5 +59,42 @@ describe("desktop shell", () => {
 
     rerender(<App state={{ kind: "error", message: "API offline" }} />);
     expect(screen.getByRole("alert")).toHaveTextContent("API offline");
+  });
+
+  it("selects a bot and routes the active workspace", async () => {
+    const user = userEvent.setup();
+    const writer = { ...bot, id: "bot-2", name: "写作助手", role: "Writer" };
+    const onSelectBot = vi.fn();
+    render(
+      <App
+        state={{ kind: "ready", bots: [bot, writer] }}
+        selectedBotId={writer.id}
+        onSelectBot={onSelectBot}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 1, name: "写作助手" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /研究助手/ }));
+    expect(onSelectBot).toHaveBeenCalledWith("bot-1");
+  });
+
+  it("creates the first bot from a real form", async () => {
+    const user = userEvent.setup();
+    const onCreateBot = vi.fn().mockResolvedValue(bot);
+    render(<App state={{ kind: "ready", bots: [] }} onCreateBot={onCreateBot} />);
+
+    await user.click(screen.getAllByRole("button", { name: "创建 Bot" }).at(-1)!);
+    await user.type(screen.getByLabelText("名称"), "研究助手");
+    await user.type(screen.getByLabelText("职责"), "Research agent");
+    await user.type(screen.getByLabelText("说明"), "检索与核验一手资料");
+    await user.click(screen.getByRole("button", { name: "保存 Bot" }));
+
+    expect(onCreateBot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "研究助手",
+        role: "Research agent",
+        model_id: "qwen3.7-plus",
+      }),
+    );
   });
 });

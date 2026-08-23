@@ -30,6 +30,7 @@ export interface Task {
   id: string;
   bot_id: string;
   conversation_id: string;
+  parent_task_id: string | null;
   status: TaskStatus;
   model_id: string | null;
   current_step: number;

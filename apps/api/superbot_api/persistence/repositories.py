@@ -1,28 +1,32 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from superbot_api.domain.enums import ApprovalStatus, RiskLevel, TaskEventType, TaskStatus
 from superbot_api.domain.models import (
     ApprovalRecord,
+    ArtifactRecord,
     BotCreate,
     BotRead,
     TaskCreate,
     TaskEventRecord,
     TaskRead,
+    UsageRecord,
 )
 from superbot_api.persistence.tables import (
     ApprovalTable,
+    ArtifactTable,
     BotTable,
     ConversationTable,
     MessageTable,
     TaskEventTable,
     TaskTable,
+    UsageTable,
 )
 
 
@@ -132,6 +136,36 @@ class TaskRepository:
             raise NotFoundError(f"task {task_id} was not found")
         return self._to_read(row)
 
+    async def claim_next(
+        self,
+        worker_id: str,
+        *,
+        now: datetime | None = None,
+        lease_seconds: int = 60,
+    ) -> TaskRead | None:
+        claim_time = now or datetime.now(UTC)
+        statement = (
+            select(TaskTable)
+            .where(
+                TaskTable.status == TaskStatus.QUEUED.value,
+                or_(
+                    TaskTable.lease_expires_at.is_(None),
+                    TaskTable.lease_expires_at <= claim_time,
+                ),
+            )
+            .order_by(TaskTable.created_at, TaskTable.id)
+            .limit(1)
+            .with_for_update(skip_locked=True)
+        )
+        row = await self.session.scalar(statement)
+        if row is None:
+            return None
+        row.lease_owner = worker_id
+        row.lease_expires_at = claim_time + timedelta(seconds=lease_seconds)
+        await self.session.commit()
+        await self.session.refresh(row)
+        return self._to_read(row)
+
     async def find_by_idempotency_key(self, bot_id: UUID, key: str) -> TaskRead | None:
         row = await self.session.scalar(
             select(TaskTable).where(
@@ -185,12 +219,94 @@ class TaskRepository:
         rows = (await self.session.scalars(statement)).all()
         return [self._event_to_read(row) for row in rows]
 
+    async def update_execution(
+        self,
+        task_id: UUID,
+        *,
+        status: TaskStatus,
+        current_step: int | None = None,
+        checkpoint: dict[str, Any] | None = None,
+    ) -> TaskRead:
+        row = await self.session.get(TaskTable, task_id)
+        if row is None:
+            raise NotFoundError(f"task {task_id} was not found")
+        row.status = status.value
+        if current_step is not None:
+            row.current_step = current_step
+        row.checkpoint = checkpoint
+        if status in {
+            TaskStatus.WAITING_APPROVAL,
+            TaskStatus.SUCCEEDED,
+            TaskStatus.FAILED,
+            TaskStatus.CANCELLED,
+        }:
+            row.lease_owner = None
+            row.lease_expires_at = None
+        row.version += 1
+        await self.session.commit()
+        await self.session.refresh(row)
+        return self._to_read(row)
+
+    async def record_artifact(self, artifact: ArtifactRecord) -> ArtifactRecord:
+        row = ArtifactTable(**artifact.model_dump())
+        self.session.add(row)
+        await self.session.commit()
+        return artifact
+
+    async def list_artifacts(self, task_id: UUID) -> list[ArtifactRecord]:
+        rows = (
+            await self.session.scalars(
+                select(ArtifactTable)
+                .where(ArtifactTable.task_id == task_id)
+                .order_by(ArtifactTable.created_at, ArtifactTable.id)
+            )
+        ).all()
+        return [
+            ArtifactRecord(
+                id=row.id,
+                task_id=row.task_id,
+                name=row.name,
+                media_type=row.media_type,
+                size_bytes=row.size_bytes,
+                sha256=row.sha256,
+                storage_key=row.storage_key,
+                kind=row.kind,
+            )
+            for row in rows
+        ]
+
+    async def record_usage(self, usage: UsageRecord) -> UsageRecord:
+        existing = await self.session.get(UsageTable, usage.task_id)
+        if existing is None:
+            self.session.add(UsageTable(**usage.model_dump()))
+        else:
+            for key, value in usage.model_dump().items():
+                setattr(existing, key, value)
+        await self.session.commit()
+        return usage
+
+    async def get_usage(self, task_id: UUID) -> UsageRecord:
+        row = await self.session.get(UsageTable, task_id)
+        if row is None:
+            raise NotFoundError(f"usage for task {task_id} was not found")
+        return UsageRecord(
+            task_id=row.task_id,
+            provider_id=row.provider_id,
+            model_id=row.model_id,
+            input_tokens=row.input_tokens,
+            output_tokens=row.output_tokens,
+            cached_tokens=row.cached_tokens,
+            cost_usd=row.cost_usd,
+            provider_request_id=row.provider_request_id,
+        )
+
     @staticmethod
     def _to_read(row: TaskTable) -> TaskRead:
         return TaskRead(
             id=row.id,
             bot_id=row.bot_id,
             conversation_id=row.conversation_id,
+            parent_task_id=row.parent_task_id,
             status=TaskStatus(row.status),
             model_id=row.model_id,
             current_step=row.current_step,
@@ -263,6 +379,14 @@ class ApprovalRepository:
             )
         ).all()
         return [self._to_read(row) for row in rows]
+
+    async def latest_for_task(self, task_id: UUID) -> ApprovalRecord | None:
+        row = await self.session.scalar(
+            select(ApprovalTable)
+            .where(ApprovalTable.task_id == task_id)
+            .order_by(ApprovalTable.created_at.desc(), ApprovalTable.id.desc())
+        )
+        return self._to_read(row) if row is not None else None
 
     @staticmethod
     def _to_read(row: ApprovalTable) -> ApprovalRecord:

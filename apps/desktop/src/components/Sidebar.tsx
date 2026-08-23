@@ -18,6 +18,9 @@ interface SidebarProps {
   bots: Bot[];
   activeSection?: string;
   onSectionChange?: (section: string) => void;
+  selectedBotId?: string;
+  onSelectBot?: (botId: string) => void;
+  onCreateBot?: () => void;
 }
 
 const sections = [
@@ -30,7 +33,7 @@ const sections = [
   [Database, "Worker", "workers"],
 ] as const;
 
-export function Sidebar({ bots, activeSection = "chat", onSectionChange }: SidebarProps) {
+export function Sidebar({ bots, activeSection = "chat", onSectionChange, selectedBotId, onSelectBot, onCreateBot }: SidebarProps) {
   return (
     <nav className="sidebar" aria-label="主导航">
       <div className="brand-row">
@@ -55,12 +58,16 @@ export function Sidebar({ bots, activeSection = "chat", onSectionChange }: Sideb
       <div className="bot-heading">
         <span>BOT</span>
         <Tooltip content="创建 Bot" relationship="label">
-          <Button appearance="subtle" size="small" icon={<Plus />} aria-label="创建 Bot" />
+          <Button appearance="subtle" size="small" icon={<Plus />} aria-label="创建 Bot" onClick={onCreateBot} />
         </Tooltip>
       </div>
       <div className="bot-list">
-        {bots.map((bot, index) => (
-          <button className={index === 0 ? "bot-item bot-item-active" : "bot-item"} key={bot.id}>
+        {bots.map((bot) => (
+          <button
+            className={bot.id === selectedBotId ? "bot-item bot-item-active" : "bot-item"}
+            key={bot.id}
+            onClick={() => onSelectBot?.(bot.id)}
+          >
             <Avatar name={bot.name} color="teal" size={28} />
             <span className="bot-copy">
               <span>{bot.name}</span>

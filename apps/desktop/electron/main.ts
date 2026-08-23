@@ -35,7 +35,7 @@ function createWindow(): void {
     title: "Super Bot",
     backgroundColor: "#f5f5f5",
     webPreferences: {
-      preload: join(__dirname, "../preload/index.js"),
+      preload: join(__dirname, "../preload/preload.mjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,

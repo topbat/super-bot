@@ -4,9 +4,9 @@
 
 **Goal:** Build a Windows-first, container-deployable persistent AI teammate platform with explicit multi-model routing, durable tasks, approvals, routines, skills, audit events, and an Electron desktop control plane.
 
-**Architecture:** Use a pnpm monorepo for the Electron/React desktop and shared TypeScript contracts, plus a Python FastAPI service for durable orchestration and a Python worker for agent execution. PostgreSQL is the source of truth, Redis Streams transports work, and S3-compatible storage holds artifacts. Development supports an in-memory profile so domain and UI tests stay fast while Docker Compose provides the production-equivalent path.
+**Architecture:** Use a pnpm monorepo for the Electron/React desktop and shared TypeScript contracts, plus a Python FastAPI service for durable orchestration and a Python worker for agent execution. PostgreSQL is the source of truth and lease queue, Valkey provides Redis-compatible coordination, and S3-compatible storage holds artifacts. Development supports an in-memory profile so domain and UI tests stay fast while Docker Compose provides the production-equivalent path.
 
-**Tech Stack:** Electron, React 19, TypeScript, Vite, Fluent UI v9, TanStack Query, Vitest, Playwright, Python 3.14, FastAPI, SQLAlchemy 2, Pydantic 2, Alembic, pytest, PostgreSQL, Redis, MinIO, Docker Compose.
+**Tech Stack:** Electron, React 19, TypeScript, Vite, Fluent UI v9, TanStack Query, Vitest, Python 3.12+, FastAPI, SQLAlchemy 2, Pydantic 2, Alembic, pytest, PostgreSQL, Valkey, SeaweedFS, Docker Compose.
 
 ---
 
@@ -327,7 +327,7 @@ Expected: FAIL for new behavior.
 
 **Step 3: Implement durable worker services**
 
-Use Redis Streams in deployment, in-memory queue in tests, database lease checkpoints, Cron schedules, non-root container policy, Playwright trace and screenshot hooks.
+Use PostgreSQL leases in deployment, an in-memory queue in unit tests, durable approval checkpoints, Cron schedules, non-root container policy, and browser policy/screenshot hooks.
 
 **Step 4: Run GREEN**
 
@@ -453,7 +453,7 @@ Expected: FAIL.
 
 **Step 3: Implement deployment files**
 
-Add API, worker, scheduler, PostgreSQL, Redis, and MinIO. Keep browser sandbox optional through a Compose profile. Preserve state in named volumes.
+Add API, worker, scheduler, PostgreSQL, Valkey, and SeaweedFS. Keep the browser execution role optional through a Compose profile. Preserve state in named volumes.
 
 **Step 4: Run GREEN and render Compose**
 
@@ -506,7 +506,7 @@ pnpm test --run
 pnpm build
 docker compose config --quiet
 docker compose build api worker scheduler
-docker compose up -d postgres redis minio api worker scheduler
+docker compose up -d postgres valkey seaweedfs api worker scheduler
 docker compose ps
 uv run pytest tests/e2e/test_task_lifecycle.py -v
 pnpm --filter @superbot/desktop package:win
@@ -522,4 +522,3 @@ Inspect `git diff --check`, secret scans, dependency licenses, generated install
 git add .
 git commit -m "feat: deliver super bot desktop platform"
 ```
-

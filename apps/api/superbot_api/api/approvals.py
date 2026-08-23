@@ -10,6 +10,7 @@ from superbot_api.api.dependencies import SessionDep
 from superbot_api.domain.enums import ApprovalStatus
 from superbot_api.domain.models import ApprovalRecord
 from superbot_api.persistence.repositories import ApprovalRepository
+from superbot_api.persistence.tables import TaskTable
 
 router = APIRouter(prefix="/approvals", tags=["approvals"])
 
@@ -32,6 +33,14 @@ async def decide_approval(
     decision: ApprovalDecision,
     session: SessionDep,
 ) -> ApprovalRecord:
-    return await ApprovalRepository(session).decide(
+    result = await ApprovalRepository(session).decide(
         approval_id, status=decision.decision, decided_by=decision.decided_by
     )
+    task = await session.get(TaskTable, result.task_id)
+    if task is not None:
+        task.status = "queued"
+        task.lease_owner = None
+        task.lease_expires_at = None
+        task.version += 1
+        await session.commit()
+    return result

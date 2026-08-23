@@ -2,13 +2,17 @@
   "name": "@superbot/desktop",
   "version": "0.1.0",
   "private": true,
+  "description": "Windows desktop control plane for persistent AI teammates",
+  "author": "Super Bot Contributors",
   "type": "module",
-  "main": "out/main/index.js",
+  "main": "out/main/main.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "lint": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "package:dir": "pnpm build && electron-builder --dir",
+    "package:win": "pnpm build && electron-builder --win nsis"
   },
   "dependencies": {
     "@fluentui/react-avatar": "^9.11.5",
@@ -38,10 +42,42 @@
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.3",
     "electron": "^38.1.2",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^4.0.0",
     "jsdom": "^27.0.0",
     "typescript": "^5.9.2",
     "vite": "^7.1.7",
     "vitest": "^3.2.4"
+  },
+  "build": {
+    "appId": "org.superbot.desktop",
+    "productName": "Super Bot",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Super-Bot-Setup-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Super Bot",
+      "deleteAppDataOnUninstall": false
+    }
   }
 }

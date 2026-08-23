@@ -27,6 +27,7 @@ class TaskEventType(StrEnum):
     CANCELLED = "cancelled"
     LEASE_EXPIRED = "lease_expired"
     RETRY_REQUESTED = "retry_requested"
+    DELEGATED = "delegated"
 
 
 class MessageRole(StrEnum):
@@ -71,4 +72,3 @@ class ToolDecision(StrEnum):
     ALLOW = "allow"
     REQUIRE_APPROVAL = "require_approval"
     DENY = "deny"
-

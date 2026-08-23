@@ -77,10 +77,18 @@ class TaskTable(TimestampMixin, Base):
     __table_args__ = (UniqueConstraint("bot_id", "idempotency_key"),)
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
-    bot_id: Mapped[UUID] = mapped_column(Uuid, index=True)
-    conversation_id: Mapped[UUID] = mapped_column(Uuid, index=True)
-    message_id: Mapped[UUID] = mapped_column(Uuid)
-    parent_task_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True, index=True)
+    bot_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("bots.id", ondelete="CASCADE"), index=True
+    )
+    conversation_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("conversations.id", ondelete="CASCADE"), index=True
+    )
+    message_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("messages.id", ondelete="CASCADE")
+    )
+    parent_task_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     status: Mapped[str] = mapped_column(String(32), default="queued", index=True)
     model_id: Mapped[str | None] = mapped_column(String(160), nullable=True)
     current_step: Mapped[int] = mapped_column(Integer, default=0)
@@ -124,3 +132,80 @@ class ApprovalTable(Base):
     decided_by: Mapped[str | None] = mapped_column(String(160), nullable=True)
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ArtifactTable(Base):
+    __tablename__ = "artifacts"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    task_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("tasks.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(240))
+    media_type: Mapped[str] = mapped_column(String(160))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    sha256: Mapped[str] = mapped_column(String(64))
+    storage_key: Mapped[str] = mapped_column(String(1000))
+    kind: Mapped[str] = mapped_column(String(24), default="output")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class UsageTable(Base):
+    __tablename__ = "usage_records"
+
+    task_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True
+    )
+    provider_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True)
+    model_id: Mapped[str] = mapped_column(String(160))
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cached_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, default=0)
+    provider_request_id: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class SkillTable(TimestampMixin, Base):
+    __tablename__ = "skills"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    description: Mapped[str] = mapped_column(Text)
+    instructions: Mapped[str] = mapped_column(Text)
+    tools: Mapped[list[str]] = mapped_column(JSON, default=list)
+    version: Mapped[str] = mapped_column(String(64), index=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class RoutineTable(TimestampMixin, Base):
+    __tablename__ = "routines"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    bot_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("bots.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(120))
+    cron: Mapped[str] = mapped_column(String(120))
+    timezone: Mapped[str] = mapped_column(String(80))
+    prompt: Mapped[str] = mapped_column(Text)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    next_run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    last_run_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class WorkerTable(Base):
+    __tablename__ = "workers"
+
+    id: Mapped[str] = mapped_column(String(200), primary_key=True)
+    role: Mapped[str] = mapped_column(String(32), index=True)
+    status: Mapped[str] = mapped_column(String(24), default="online")
+    hostname: Mapped[str] = mapped_column(String(240))
+    capabilities: Mapped[list[str]] = mapped_column(JSON, default=list)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)

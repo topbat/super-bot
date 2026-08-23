@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Sequence
 from typing import Any, Protocol
 
@@ -24,6 +25,19 @@ class ModelProtocolError(ModelGatewayError):
 
 class SecretResolver(Protocol):
     async def resolve(self, secret_ref: str | None) -> str | None: ...
+
+
+class EnvironmentSecretResolver:
+    async def resolve(self, secret_ref: str | None) -> str | None:
+        if secret_ref is None:
+            return None
+        if not secret_ref.startswith("env:"):
+            raise ModelUnavailable(f"unsupported secret reference: {secret_ref.split(':', 1)[0]}")
+        variable = secret_ref.removeprefix("env:")
+        value = os.environ.get(variable)
+        if not value:
+            raise ModelUnavailable(f"required provider secret {variable} is not configured")
+        return value
 
 
 class ProviderConfig(BaseModel):

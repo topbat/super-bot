@@ -114,6 +114,7 @@ class TaskRead(DomainModel):
     id: UUID
     bot_id: UUID
     conversation_id: UUID
+    parent_task_id: UUID | None = None
     status: TaskStatus
     model_id: str | None = None
     current_step: int = 0

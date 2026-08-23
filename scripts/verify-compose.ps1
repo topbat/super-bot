@@ -6,6 +6,9 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Push-Location $projectRoot
 try {
+    if (-not (Test-Path -LiteralPath '.env')) {
+        throw 'Create .env from .env.example and set the required passwords first.'
+    }
     $configArgs = @('compose')
     if ($Browser) { $configArgs += @('--profile', 'browser') }
     $configArgs += @('config', '--quiet')

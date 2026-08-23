@@ -10,6 +10,12 @@ x-app-environment: &app-environment
   SUPERBOT_S3_SECRET_KEY_REF: env:SUPERBOT_S3_SECRET_KEY
   SUPERBOT_S3_ACCESS_KEY: ${S3_ACCESS_KEY:?set S3_ACCESS_KEY}
   SUPERBOT_S3_SECRET_KEY: ${S3_SECRET_KEY:?set S3_SECRET_KEY}
+  SUPERBOT_DASHSCOPE_API_KEY: ${SUPERBOT_DASHSCOPE_API_KEY:-}
+  SUPERBOT_DEEPSEEK_API_KEY: ${SUPERBOT_DEEPSEEK_API_KEY:-}
+  SUPERBOT_MOONSHOT_API_KEY: ${SUPERBOT_MOONSHOT_API_KEY:-}
+  SUPERBOT_ZHIPU_API_KEY: ${SUPERBOT_ZHIPU_API_KEY:-}
+  SUPERBOT_MINIMAX_API_KEY: ${SUPERBOT_MINIMAX_API_KEY:-}
+  SUPERBOT_SILICONFLOW_API_KEY: ${SUPERBOT_SILICONFLOW_API_KEY:-}
 
 x-app-security: &app-security
   user: "65532:65532"
@@ -100,7 +106,10 @@ services:
       <<: *app-environment
       SUPERBOT_WORKER_ROLE: worker
     command: [python, -m, superbot_worker.service, --role, worker]
-    depends_on: *app-dependencies
+    depends_on:
+      <<: *app-dependencies
+      api:
+        condition: service_healthy
     volumes:
       - bot-workspaces:/workspaces
     healthcheck:
@@ -122,7 +131,10 @@ services:
       <<: *app-environment
       SUPERBOT_WORKER_ROLE: scheduler
     command: [python, -m, superbot_worker.service, --role, scheduler]
-    depends_on: *app-dependencies
+    depends_on:
+      <<: *app-dependencies
+      api:
+        condition: service_healthy
     healthcheck:
       test: [CMD, python, -c, "from pathlib import Path; raise SystemExit(not Path('/tmp/superbot-scheduler.ready').exists())"]
       interval: 10s

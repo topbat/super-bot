@@ -68,3 +68,33 @@ async def test_task_can_be_cancelled_and_emits_replayable_sse(api_client, bot_pa
     )
     assert "event: created" not in replay.text
     assert "event: cancelled" in replay.text
+
+
+async def test_task_can_delegate_to_another_bot_idempotently(api_client, bot_payload) -> None:
+    coordinator = await create_bot(api_client, bot_payload)
+    specialist = await create_bot(api_client, {**bot_payload, "name": "Specialist"})
+    parent = (
+        await api_client.post(
+            f"/api/v1/bots/{coordinator['id']}/messages",
+            json={"content": "Coordinate the report"},
+        )
+    ).json()
+    command = {
+        "target_bot_id": specialist["id"],
+        "prompt": "Verify the model support matrix",
+    }
+    headers = {"Idempotency-Key": "support-matrix"}
+
+    first = await api_client.post(
+        f"/api/v1/tasks/{parent['id']}/delegate", json=command, headers=headers
+    )
+    second = await api_client.post(
+        f"/api/v1/tasks/{parent['id']}/delegate", json=command, headers=headers
+    )
+
+    assert first.status_code == second.status_code == 202
+    assert first.json()["id"] == second.json()["id"]
+    assert first.json()["bot_id"] == specialist["id"]
+    assert first.json()["parent_task_id"] == parent["id"]
+    events = await api_client.get(f"/api/v1/tasks/{parent['id']}/events?once=true")
+    assert "event: delegated" in events.text

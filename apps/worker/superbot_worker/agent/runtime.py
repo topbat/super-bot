@@ -49,10 +49,18 @@ class ApprovalRequired(RuntimeError):
         self.checkpoint = checkpoint
 
 
+class ToolExecution(BaseModel):
+    name: str
+    arguments: dict
+    content: str
+    metadata: dict = Field(default_factory=dict)
+
+
 class AgentRunResult(BaseModel):
     content: str
     steps: int
     usage: TokenUsage = Field(default_factory=TokenUsage)
+    executed_tools: list[ToolExecution] = Field(default_factory=list)
 
 
 class AgentRuntime:
@@ -79,11 +87,45 @@ class AgentRuntime:
         self.is_cancelled = is_cancelled
         self.fallback_model_ids = fallback_model_ids
 
-    async def run(self, user_text: str) -> AgentRunResult:
-        messages: list[dict[str, Any]] = [{"role": "user", "content": user_text}]
-        usage = TokenUsage()
+    async def run(
+        self,
+        user_text: str = "",
+        *,
+        approved_checkpoint: dict[str, Any] | None = None,
+    ) -> AgentRunResult:
+        messages: list[dict[str, Any]]
+        usage: TokenUsage
+        executed_tools: list[ToolExecution] = []
+        starting_step = 0
+        if approved_checkpoint is None:
+            messages = [{"role": "user", "content": user_text}]
+            usage = TokenUsage()
+        else:
+            messages = list(approved_checkpoint["messages"])
+            usage = TokenUsage.model_validate(approved_checkpoint.get("usage", {}))
+            starting_step = int(approved_checkpoint["step"])
+            call = approved_checkpoint["tool_call"]
+            name, arguments = self._parse_tool_call(call)
+            self._raise_if_cancelled()
+            result = await self.tools.execute(name, arguments)
+            executed_tools.append(
+                ToolExecution(
+                    name=name,
+                    arguments=arguments,
+                    content=result.content,
+                    metadata=result.metadata,
+                )
+            )
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": str(call.get("id", "")),
+                    "name": name,
+                    "content": result.content,
+                }
+            )
 
-        for step in range(1, self.max_steps + 1):
+        for step in range(starting_step + 1, self.max_steps + 1):
             self._raise_if_cancelled()
             response = await self.model.complete(
                 self.model_id,
@@ -100,7 +142,12 @@ class AgentRuntime:
             )
 
             if not response.tool_calls:
-                return AgentRunResult(content=response.content, steps=step, usage=usage)
+                return AgentRunResult(
+                    content=response.content,
+                    steps=step,
+                    usage=usage,
+                    executed_tools=executed_tools,
+                )
             if step >= self.max_steps:
                 raise MaxStepsExceeded(f"agent exceeded hard limit of {self.max_steps} steps")
 
@@ -132,6 +179,7 @@ class AgentRuntime:
                             "messages": messages,
                             "tool_call": call,
                             "reason": decision.reason,
+                            "usage": usage.model_dump(mode="json"),
                         },
                     )
                 if decision.decision is ToolDecision.DENY:
@@ -139,6 +187,14 @@ class AgentRuntime:
                 else:
                     result = await self.tools.execute(name, arguments)
                     content = result.content
+                    executed_tools.append(
+                        ToolExecution(
+                            name=name,
+                            arguments=arguments,
+                            content=result.content,
+                            metadata=result.metadata,
+                        )
+                    )
                 messages.append(
                     {
                         "role": "tool",

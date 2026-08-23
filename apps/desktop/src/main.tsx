@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import type { ComponentProps } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -9,6 +9,8 @@ import {
   useApprovalDecision,
   useApprovals,
   useBots,
+  useCreateBot,
+  useCreateRoutine,
   useModels,
   useRoutines,
   useSendMessage,
@@ -34,13 +36,23 @@ function watchTask(
 }
 
 function DesktopControl() {
+  const [selectedBotId, setSelectedBotId] = useState<string>();
   const bots = useBots(api);
   const approvals = useApprovals(api);
   const models = useModels(api);
   const routines = useRoutines(api);
   const workers = useWorkers(api);
-  const send = useSendMessage(api, bots.data?.[0]?.id);
+  const createBot = useCreateBot(api);
+  const createRoutine = useCreateRoutine(api);
+  const send = useSendMessage(api, selectedBotId);
   const decision = useApprovalDecision(api);
+
+  useEffect(() => {
+    if (!selectedBotId && bots.data?.[0]) setSelectedBotId(bots.data[0].id);
+    if (selectedBotId && bots.data && !bots.data.some((bot) => bot.id === selectedBotId)) {
+      setSelectedBotId(bots.data[0]?.id);
+    }
+  }, [bots.data, selectedBotId]);
 
   if (bots.isPending) return <App state={{ kind: "loading" }} />;
   if (bots.isError) return <App state={{ kind: "error", message: bots.error.message }} onRetry={() => void bots.refetch()} />;
@@ -57,6 +69,10 @@ function DesktopControl() {
       sendMessage={(content, idempotencyKey) => send.mutateAsync({ content, idempotencyKey })}
       watchTask={watchTask}
       decideApproval={(id, selectedDecision) => decision.mutate({ id, decision: selectedDecision })}
+      selectedBotId={selectedBotId}
+      onSelectBot={setSelectedBotId}
+      onCreateBot={(command) => createBot.mutateAsync(command)}
+      onCreateRoutine={(command) => createRoutine.mutateAsync(command)}
     />
   );
 }
