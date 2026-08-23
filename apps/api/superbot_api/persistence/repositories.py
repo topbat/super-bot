@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from superbot_api.browser_gateway import BrowserSessionRecord, BrowserSnapshotPayload
 from superbot_api.domain.enums import ApprovalStatus, RiskLevel, TaskEventType, TaskStatus
 from superbot_api.domain.models import (
     ApprovalRecord,
@@ -22,6 +23,8 @@ from superbot_api.persistence.tables import (
     ApprovalTable,
     ArtifactTable,
     BotTable,
+    BrowserActionTable,
+    BrowserSessionTable,
     ConversationTable,
     MessageTable,
     TaskEventTable,
@@ -101,6 +104,105 @@ class BotRepository:
         )
 
 
+class BrowserSessionRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def require_bot(self, bot_id: UUID) -> None:
+        if await self.session.get(BotTable, bot_id) is None:
+            raise NotFoundError(f"bot {bot_id} was not found")
+
+    async def create(
+        self,
+        *,
+        session_id: UUID,
+        bot_id: UUID,
+        snapshot: BrowserSnapshotPayload,
+        allowed_domains: list[str],
+    ):
+        row = BrowserSessionTable(
+            id=session_id,
+            bot_id=bot_id,
+            status="active",
+            current_url=snapshot.url,
+            title=snapshot.title,
+            allowed_domains=allowed_domains,
+            viewport_width=snapshot.viewport_width,
+            viewport_height=snapshot.viewport_height,
+        )
+        self.session.add(row)
+        await self.session.commit()
+        await self.session.refresh(row)
+        return self._to_read(row)
+
+    async def get(self, session_id: UUID):
+        row = await self.session.get(BrowserSessionTable, session_id)
+        if row is None:
+            raise NotFoundError(f"browser session {session_id} was not found")
+        return self._to_read(row)
+
+    async def list(self, *, bot_id: UUID):
+        rows = (
+            await self.session.scalars(
+                select(BrowserSessionTable)
+                .where(
+                    BrowserSessionTable.bot_id == bot_id,
+                    BrowserSessionTable.status == "active",
+                )
+                .order_by(BrowserSessionTable.created_at, BrowserSessionTable.id)
+            )
+        ).all()
+        return [self._to_read(row) for row in rows]
+
+    async def record_action(
+        self,
+        *,
+        session_id: UUID,
+        kind: str,
+        arguments: dict[str, Any],
+        snapshot: BrowserSnapshotPayload,
+    ) -> None:
+        row = await self.session.get(BrowserSessionTable, session_id)
+        if row is None:
+            raise NotFoundError(f"browser session {session_id} was not found")
+        row.current_url = snapshot.url
+        row.title = snapshot.title
+        row.viewport_width = snapshot.viewport_width
+        row.viewport_height = snapshot.viewport_height
+        self.session.add(
+            BrowserActionTable(
+                session_id=session_id,
+                kind=kind,
+                arguments=arguments,
+                result_url=snapshot.url,
+            )
+        )
+        await self.session.commit()
+
+    async def close(self, session_id: UUID) -> None:
+        row = await self.session.get(BrowserSessionTable, session_id)
+        if row is None:
+            raise NotFoundError(f"browser session {session_id} was not found")
+        row.status = "closed"
+        row.closed_at = datetime.now(UTC)
+        await self.session.commit()
+
+    @staticmethod
+    def _to_read(row: BrowserSessionTable):
+        return BrowserSessionRecord(
+            id=row.id,
+            bot_id=row.bot_id,
+            status=row.status,
+            current_url=row.current_url,
+            title=row.title,
+            allowed_domains=row.allowed_domains or [],
+            viewport_width=row.viewport_width,
+            viewport_height=row.viewport_height,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
+
+
 class TaskRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -168,9 +270,7 @@ class TaskRepository:
 
     async def find_by_idempotency_key(self, bot_id: UUID, key: str) -> TaskRead | None:
         row = await self.session.scalar(
-            select(TaskTable).where(
-                TaskTable.bot_id == bot_id, TaskTable.idempotency_key == key
-            )
+            select(TaskTable).where(TaskTable.bot_id == bot_id, TaskTable.idempotency_key == key)
         )
         return self._to_read(row) if row is not None else None
 

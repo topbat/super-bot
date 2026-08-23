@@ -27,4 +27,3 @@ def create_database(url: str, *, echo: bool = False) -> Database:
 async def initialize_schema(engine: AsyncEngine) -> None:
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
-

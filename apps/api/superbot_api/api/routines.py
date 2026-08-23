@@ -50,9 +50,7 @@ class RoutineRead(RoutineCreate):
     created_at: datetime
     updated_at: datetime
 
-    @field_serializer(
-        "next_run_at", "last_run_at", "created_at", "updated_at", when_used="json"
-    )
+    @field_serializer("next_run_at", "last_run_at", "created_at", "updated_at", when_used="json")
     def serialize_utc_datetime(self, value: datetime | None) -> str | None:
         if value is None:
             return None
@@ -65,12 +63,8 @@ async def create_routine(command: RoutineCreate, session: SessionDep) -> Routine
     if await session.get(BotTable, command.bot_id) is None:
         raise NotFoundError(f"bot {command.bot_id} was not found")
     zone = ZoneInfo(command.timezone)
-    next_run = croniter(command.cron, datetime.now(UTC).astimezone(zone)).get_next(
-        datetime
-    )
-    row = RoutineTable(
-        **command.model_dump(), next_run_at=next_run.astimezone(UTC)
-    )
+    next_run = croniter(command.cron, datetime.now(UTC).astimezone(zone)).get_next(datetime)
+    row = RoutineTable(**command.model_dump(), next_run_at=next_run.astimezone(UTC))
     session.add(row)
     await session.commit()
     await session.refresh(row)
@@ -79,7 +73,5 @@ async def create_routine(command: RoutineCreate, session: SessionDep) -> Routine
 
 @router.get("", response_model=list[RoutineRead])
 async def list_routines(session: SessionDep) -> list[RoutineRead]:
-    rows = (
-        await session.scalars(select(RoutineTable).order_by(RoutineTable.next_run_at))
-    ).all()
+    rows = (await session.scalars(select(RoutineTable).order_by(RoutineTable.next_run_at))).all()
     return [RoutineRead.model_validate(row, from_attributes=True) for row in rows]

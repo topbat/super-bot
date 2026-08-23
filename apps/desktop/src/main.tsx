@@ -8,7 +8,12 @@ import { ApiClient } from "./api/client";
 import {
   useApprovalDecision,
   useApprovals,
+  useBrowserAction,
+  useBrowserSessions,
+  useBrowserSnapshot,
   useBots,
+  useCloseBrowserSession,
+  useCreateBrowserSession,
   useCreateBot,
   useCreateRoutine,
   useModels,
@@ -42,6 +47,12 @@ function DesktopControl() {
   const models = useModels(api);
   const routines = useRoutines(api);
   const workers = useWorkers(api);
+  const browserSessions = useBrowserSessions(api, selectedBotId);
+  const activeBrowserSession = browserSessions.data?.find((session) => session.status === "active");
+  const browserSnapshot = useBrowserSnapshot(api, activeBrowserSession?.id);
+  const createBrowser = useCreateBrowserSession(api, selectedBotId);
+  const browserAction = useBrowserAction(api, activeBrowserSession?.id, selectedBotId);
+  const closeBrowser = useCloseBrowserSession(api, selectedBotId);
   const createBot = useCreateBot(api);
   const createRoutine = useCreateRoutine(api);
   const send = useSendMessage(api, selectedBotId);
@@ -65,6 +76,8 @@ function DesktopControl() {
         models: models.data,
         routines: routines.data,
         workers: workers.data,
+        browserSessions: browserSessions.data,
+        browserSnapshot: browserSnapshot.data,
       }}
       sendMessage={(content, idempotencyKey) => send.mutateAsync({ content, idempotencyKey })}
       watchTask={watchTask}
@@ -73,6 +86,12 @@ function DesktopControl() {
       onSelectBot={setSelectedBotId}
       onCreateBot={(command) => createBot.mutateAsync(command)}
       onCreateRoutine={(command) => createRoutine.mutateAsync(command)}
+      onCreateBrowser={async (startUrl) => { await createBrowser.mutateAsync(startUrl); }}
+      onBrowserAction={async (action) => { await browserAction.mutateAsync(action); }}
+      onCloseBrowser={async (sessionId) => { await closeBrowser.mutateAsync(sessionId); }}
+      onRefreshBrowser={async () => { await browserSnapshot.refetch(); }}
+      browserPending={createBrowser.isPending || browserAction.isPending || closeBrowser.isPending || browserSnapshot.isFetching}
+      browserError={(createBrowser.error ?? browserAction.error ?? closeBrowser.error ?? browserSnapshot.error)?.message}
     />
   );
 }

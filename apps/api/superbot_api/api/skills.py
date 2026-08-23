@@ -35,9 +35,7 @@ class SkillRead(SkillCreate):
 @router.post("", response_model=SkillRead, status_code=status.HTTP_201_CREATED)
 async def create_skill(command: SkillCreate, session: SessionDep) -> SkillRead:
     canonical = json.dumps(command.model_dump(), sort_keys=True, separators=(",", ":"))
-    row = SkillTable(
-        **command.model_dump(), version=hashlib.sha256(canonical.encode()).hexdigest()
-    )
+    row = SkillTable(**command.model_dump(), version=hashlib.sha256(canonical.encode()).hexdigest())
     session.add(row)
     await session.commit()
     await session.refresh(row)

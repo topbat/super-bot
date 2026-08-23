@@ -107,9 +107,7 @@ class ModelGateway:
         detail = str(last_error) if last_error else "no model attempts were made"
         raise ModelUnavailable(f"models unavailable ({attempted}): {detail}")
 
-    async def _complete_once(
-        self, model_id: str, request: CompletionRequest
-    ) -> CompletionResponse:
+    async def _complete_once(self, model_id: str, request: CompletionRequest) -> CompletionResponse:
         requirement = ModelRequirement(
             tool_calling=bool(request.tools), thinking=request.enable_thinking is True
         )

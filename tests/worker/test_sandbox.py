@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import socket
 from pathlib import Path
 
 import pytest
@@ -27,6 +28,24 @@ def test_browser_domain_allowlist_is_exact() -> None:
     assert policy.validate("https://docs.example.com/guide") == "https://docs.example.com/guide"
     with pytest.raises(BrowserTargetDenied):
         policy.validate("https://docs.example.com.attacker.test/")
+
+
+async def test_browser_can_explicitly_trust_a_dns_proxy_fake_ip_range(monkeypatch) -> None:
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda *args, **kwargs: [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("198.18.0.145", 0))
+        ],
+    )
+
+    with pytest.raises(BrowserTargetDenied):
+        await BrowserPolicy().validate_resolved("https://public.example/")
+
+    policy = BrowserPolicy(trusted_dns_proxy_cidrs={"198.18.0.0/15"})
+    assert await policy.validate_resolved("https://public.example/") == "https://public.example/"
+    with pytest.raises(BrowserTargetDenied):
+        policy.validate("http://198.18.0.145/")
 
 
 def test_docker_sandbox_uses_non_root_minimal_privileges(tmp_path: Path) -> None:

@@ -60,9 +60,7 @@ async def delegate_task(
         existing = await tasks.find_by_idempotency_key(bot.id, delegated_key)
         if existing is not None:
             return existing
-    conversation_id, message_id = await ConversationRepository(
-        session
-    ).create_with_message(
+    conversation_id, message_id = await ConversationRepository(session).create_with_message(
         bot_id=bot.id,
         content=command.prompt,
         attachment_ids=[],
@@ -93,9 +91,7 @@ async def delegate_task(
 
 
 @router.get("/{task_id}/artifacts", response_model=list[ArtifactRecord])
-async def list_task_artifacts(
-    task_id: UUID, session: SessionDep
-) -> list[ArtifactRecord]:
+async def list_task_artifacts(task_id: UUID, session: SessionDep) -> list[ArtifactRecord]:
     await TaskRepository(session).get(task_id)
     return await TaskRepository(session).list_artifacts(task_id)
 

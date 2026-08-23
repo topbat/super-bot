@@ -10,7 +10,7 @@ import { Sun } from "@phosphor-icons/react/dist/csr/Sun";
 
 import type { Approval, Bot, Task } from "@superbot/contracts";
 
-import type { CatalogModel } from "./api/queries";
+import type { BrowserAction, BrowserSessionRecord, BrowserSnapshot, CatalogModel } from "./api/queries";
 import type { BotCreateInput, RoutineCreateInput, RoutineRecord } from "./api/queries";
 import type { ServerEvent } from "./api/client";
 import { AppShell } from "./components/AppShell";
@@ -25,6 +25,7 @@ const AuditView = lazy(() => import("./features/audit/AuditView").then((module) 
 const ModelCenter = lazy(() => import("./features/models/ModelCenter").then((module) => ({ default: module.ModelCenter })));
 const RoutineCenter = lazy(() => import("./features/routines/RoutineCenter").then((module) => ({ default: module.RoutineCenter })));
 const WorkerView = lazy(() => import("./features/workers/WorkerView").then((module) => ({ default: module.WorkerView })));
+const BrowserView = lazy(() => import("./features/browser/BrowserView").then((module) => ({ default: module.BrowserView })));
 
 export type AppState =
   | { kind: "loading" }
@@ -36,6 +37,8 @@ export type AppState =
       models?: CatalogModel[];
       routines?: RoutineRecord[];
       workers?: Record<string, unknown>[];
+      browserSessions?: BrowserSessionRecord[];
+      browserSnapshot?: BrowserSnapshot;
     };
 
 interface AppProps {
@@ -48,9 +51,15 @@ interface AppProps {
   onSelectBot?: (botId: string) => void;
   onCreateBot?: (command: BotCreateInput) => Promise<Bot>;
   onCreateRoutine?: (command: RoutineCreateInput) => Promise<unknown>;
+  onCreateBrowser?: (startUrl: string) => Promise<void>;
+  onBrowserAction?: (action: BrowserAction) => Promise<void>;
+  onCloseBrowser?: (sessionId: string) => Promise<void>;
+  onRefreshBrowser?: () => Promise<void>;
+  browserPending?: boolean;
+  browserError?: string;
 }
 
-export function App({ state, sendMessage, watchTask, decideApproval, onRetry, selectedBotId, onSelectBot, onCreateBot, onCreateRoutine }: AppProps) {
+export function App({ state, sendMessage, watchTask, decideApproval, onRetry, selectedBotId, onSelectBot, onCreateBot, onCreateRoutine, onCreateBrowser, onBrowserAction, onCloseBrowser, onRefreshBrowser, browserPending, browserError }: AppProps) {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [activeSection, setActiveSection] = useState("chat");
@@ -118,7 +127,14 @@ export function App({ state, sendMessage, watchTask, decideApproval, onRetry, se
             )}
             {state.kind === "ready" && bots.length > 0 && activeSection !== "chat" && (
               <Suspense fallback={<Spinner label="正在加载功能模块" />}>
-                {renderSection(activeSection, state, selectedBot, decideApproval, onCreateRoutine)}
+                {renderSection(activeSection, state, selectedBot, decideApproval, onCreateRoutine, {
+                  onCreate: onCreateBrowser,
+                  onAction: onBrowserAction,
+                  onClose: onCloseBrowser,
+                  onRefresh: onRefreshBrowser,
+                  pending: browserPending,
+                  error: browserError,
+                })}
               </Suspense>
             )}
           </section>
@@ -153,11 +169,32 @@ function renderSection(
   selectedBot: Bot | undefined,
   decideApproval?: (id: string, decision: "approved" | "denied") => void,
   onCreateRoutine?: (command: RoutineCreateInput) => Promise<unknown>,
+  browser?: {
+    onCreate?: (startUrl: string) => Promise<void>;
+    onAction?: (action: BrowserAction) => Promise<void>;
+    onClose?: (sessionId: string) => Promise<void>;
+    onRefresh?: () => Promise<void>;
+    pending?: boolean;
+    error?: string;
+  },
 ) {
   if (activeSection === "approvals") return <ApprovalCenter approvals={state.approvals ?? []} onDecision={decideApproval ?? (() => undefined)} />;
   if (activeSection === "models") return <ModelCenter models={state.models ?? []} />;
   if (activeSection === "routines") return <RoutineCenter routines={state.routines ?? []} botId={selectedBot?.id} onCreate={onCreateRoutine} />;
   if (activeSection === "audit") return <AuditView />;
   if (activeSection === "workers") return <WorkerView workers={state.workers ?? []} />;
+  if (activeSection === "browser") return (
+    <BrowserView
+      botId={selectedBot?.id}
+      sessions={state.browserSessions ?? []}
+      snapshot={state.browserSnapshot}
+      pending={browser?.pending}
+      error={browser?.error}
+      onCreate={browser?.onCreate ?? (() => Promise.reject(new Error("浏览器服务尚未连接")))}
+      onAction={browser?.onAction ?? (() => Promise.reject(new Error("浏览器服务尚未连接")))}
+      onClose={browser?.onClose ?? (() => Promise.reject(new Error("浏览器服务尚未连接")))}
+      onRefresh={browser?.onRefresh ?? (() => Promise.reject(new Error("浏览器服务尚未连接")))}
+    />
+  );
   return <section className="feature-center"><header><span className="eyebrow">VERSIONED CAPABILITIES</span><h2>技能</h2><p>从 SKILL.md 加载经过哈希版本化的工作流程和工具边界。</p></header><div className="feature-empty">尚未安装技能</div></section>;
 }

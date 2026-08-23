@@ -33,4 +33,3 @@ def validate_capability(capability: ModelCapability, requirement: ModelRequireme
         missing.append(f"context_window>={requirement.minimum_context_window}")
     if missing:
         raise CapabilityError(f"model does not support required capabilities: {', '.join(missing)}")
-

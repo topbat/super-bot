@@ -5,6 +5,7 @@ import asyncio
 import logging
 import socket
 from collections.abc import Awaitable, Callable
+from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -20,6 +21,7 @@ from superbot_api.persistence.repositories import TaskRepository
 from superbot_api.persistence.tables import MessageTable, TaskTable, WorkerTable
 
 from superbot_worker.artifacts import S3ArtifactStore
+from superbot_worker.browser import BrowserPolicy
 from superbot_worker.execution import ExecutionCoordinator
 from superbot_worker.queue import InMemoryDurableQueue, QueueItem
 from superbot_worker.scheduler import dispatch_due_routines
@@ -163,20 +165,61 @@ async def run_scheduler(ready_path: AsyncPath) -> None:
 
 
 async def run_browser_heartbeat(ready_path: AsyncPath, redis: Redis) -> None:
-    database = create_database(get_settings().database_url)
+    import uvicorn
+
+    from superbot_worker.browser_gateway import (
+        BrowserSessionRegistry,
+        PlaywrightConnector,
+        create_gateway_app,
+    )
+
+    settings = get_settings()
+    database = create_database(settings.database_url)
     worker_id = f"{socket.gethostname()}:browser"
-    try:
+    registry = BrowserSessionRegistry(
+        connector=PlaywrightConnector(settings.playwright_ws_endpoint),
+        policy_factory=lambda domains: BrowserPolicy(
+            allowed_domains=domains,
+            trusted_dns_proxy_cidrs={
+                cidr.strip()
+                for cidr in settings.browser_trusted_dns_proxy_cidrs.split(",")
+                if cidr.strip()
+            },
+        ),
+    )
+    server = uvicorn.Server(
+        uvicorn.Config(
+            create_gateway_app(registry),
+            host=settings.browser_gateway_host,
+            port=settings.browser_gateway_port,
+            log_level="info",
+            access_log=False,
+        )
+    )
+
+    async def heartbeat() -> None:
         while True:
             await redis.ping()
             await record_worker_heartbeat(
                 database,
                 worker_id=worker_id,
                 role="browser",
-                capabilities=["browser-policy", "screenshots"],
+                capabilities=[
+                    "browser-policy",
+                    "interactive-screenshot",
+                    "playwright-remote",
+                ],
             )
             await ready_path.write_text(datetime.now(UTC).isoformat(), encoding="utf-8")
             await asyncio.sleep(10)
+
+    heartbeat_task = asyncio.create_task(heartbeat())
+    try:
+        await server.serve()
     finally:
+        heartbeat_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await heartbeat_task
         await database.engine.dispose()
 
 

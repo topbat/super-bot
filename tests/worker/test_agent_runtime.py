@@ -111,9 +111,7 @@ async def test_denied_tool_is_reported_to_model_without_execution() -> None:
 
 async def test_approval_pauses_with_checkpoint() -> None:
     model = ScriptedModel([tool_call("utility.echo", '{"text":"needs review"}')])
-    rules = [
-        PolicyRule(effect=ToolDecision.REQUIRE_APPROVAL, tool_pattern="utility.echo")
-    ]
+    rules = [PolicyRule(effect=ToolDecision.REQUIRE_APPROVAL, tool_pattern="utility.echo")]
 
     with pytest.raises(ApprovalRequired) as caught:
         await runtime(model, rules=rules).run("echo after review")

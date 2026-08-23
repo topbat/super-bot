@@ -34,4 +34,3 @@ def test_unknown_model_is_not_silently_invented() -> None:
 
     with pytest.raises(KeyError, match="unknown-model"):
         catalog.get("unknown-model")
-

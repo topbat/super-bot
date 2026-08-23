@@ -7,29 +7,51 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
-from superbot_api.api import approvals, bots, models, routines, skills, tasks, workers
-from superbot_api.api.errors import conflict_handler, not_found_handler, validation_handler
+from superbot_api.api import approvals, bots, browser, models, routines, skills, tasks, workers
+from superbot_api.api.errors import (
+    browser_denied_handler,
+    browser_unavailable_handler,
+    conflict_handler,
+    not_found_handler,
+    validation_handler,
+)
+from superbot_api.browser_gateway import (
+    BrowserGateway,
+    BrowserGatewayDenied,
+    BrowserGatewayUnavailable,
+    HttpBrowserGatewayClient,
+)
 from superbot_api.config import get_settings
 from superbot_api.db import Database, create_database, initialize_schema
 from superbot_api.persistence.repositories import ConflictError, NotFoundError
 
 
-def create_app(*, database: Database | None = None) -> FastAPI:
+def create_app(
+    *, database: Database | None = None, browser_gateway: BrowserGateway | None = None
+) -> FastAPI:
     selected_database = database or create_database(get_settings().database_url)
+    selected_browser_gateway = browser_gateway or HttpBrowserGatewayClient(
+        get_settings().browser_gateway_url
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         await initialize_schema(selected_database.engine)
         yield
+        if browser_gateway is None:
+            await selected_browser_gateway.aclose()
         if database is None:
             await selected_database.engine.dispose()
 
     settings = get_settings()
     app = FastAPI(title="Super Bot API", version="0.1.0", lifespan=lifespan)
     app.state.database = selected_database
+    app.state.browser_gateway = selected_browser_gateway
     app.add_exception_handler(NotFoundError, not_found_handler)
     app.add_exception_handler(ConflictError, conflict_handler)
     app.add_exception_handler(RequestValidationError, validation_handler)
+    app.add_exception_handler(BrowserGatewayUnavailable, browser_unavailable_handler)
+    app.add_exception_handler(BrowserGatewayDenied, browser_denied_handler)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -53,6 +75,7 @@ def create_app(*, database: Database | None = None) -> FastAPI:
         bots.router,
         tasks.router,
         approvals.router,
+        browser.router,
         models.router,
         skills.router,
         routines.router,

@@ -9,4 +9,3 @@ def default_decision_for_risk(risk: RiskLevel) -> tuple[ToolDecision, str]:
     if risk is RiskLevel.CRITICAL:
         return ToolDecision.REQUIRE_APPROVAL, "critical action always requires approval"
     return ToolDecision.REQUIRE_APPROVAL, f"{risk.value} action requires approval"
-

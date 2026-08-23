@@ -42,9 +42,7 @@ async def test_routine_persists_timezone_and_next_run(api_client, bot_payload) -
     assert (await api_client.get("/api/v1/routines")).json()[0]["name"] == "Morning brief"
 
 
-async def test_workers_endpoint_reports_persisted_heartbeats(
-    api_client, api_database
-) -> None:
+async def test_workers_endpoint_reports_persisted_heartbeats(api_client, api_database) -> None:
     async with api_database.sessions() as session:
         session.add(
             WorkerTable(

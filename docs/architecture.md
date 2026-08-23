@@ -12,6 +12,8 @@
 | FastAPI | 稳定 API、SSE、校验、Problem Details | PostgreSQL |
 | Worker | 模型循环、工具执行、检查点、产物 | PostgreSQL + S3 |
 | Scheduler | 扫描到期例程并幂等生成任务 | PostgreSQL |
+| Browser Gateway | 远程 Playwright 会话句柄、策略路由、截图与交互动作 | 内存 + Playwright Server |
+| Playwright Server | 隔离 Chromium 进程与 WebSocket 协议端点 | 临时浏览器上下文 |
 | PostgreSQL | Bot、消息、任务、事件、审批、技能、例程、用量 | 唯一事实源 |
 | Valkey | Redis Streams 兼容传输与协调 | 可重建传输层 |
 | SeaweedFS | S3 兼容产物对象存储 | 命名卷 |
@@ -26,6 +28,8 @@
 6. 每个工具、模型响应、产物、失败和完成状态都进入追加式事件流；桌面用 SSE 游标恢复。
 7. 文件产物上传 S3，并在 PostgreSQL 保存媒体类型、大小、存储键和 SHA-256；用量单独保存 token 与供应商请求 ID。
 
+浏览器链路独立于模型任务：Electron 调用 `/api/v1/browser`，API 先写入/读取 `browser_sessions`，再通过内部 HTTP 调用 Browser Gateway；Gateway 使用 `BrowserType.connect()` 连接同版本 Playwright Server。每个动作返回当前 URL、标题、视口、PNG 截图和可交互元素摘要，API 同步会话并把脱敏参数写入 `browser_actions`。Playwright Server 与 Gateway 都不发布宿主端口。
+
 例程由 Scheduler 使用行锁和确定性 occurrence 幂等键派发。多 Bot 委派会创建带 `parent_task_id` 的子任务，并在父任务记录 `delegated` 事件。
 
 ## 一致性与恢复
@@ -36,6 +40,7 @@
 - 审批使用持久化 checkpoint；拒绝进入明确失败状态。
 - SSE 事件带单调 ID，客户端用 `Last-Event-ID` 继续。
 - 没有配置供应商 Key 时任务明确失败；不会静默换到其他模型。
+- 浏览器 Context/页面句柄是临时执行状态；Gateway 重启后旧会话会明确失败，不伪装为已恢复。
 
 ## 扩展点
 
