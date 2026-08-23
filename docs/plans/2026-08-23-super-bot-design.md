@@ -32,7 +32,7 @@ Super Bot 是一个 MIT 协议的持久化 AI 同事平台。用户可以创建�
 10. Skills：Markdown 与 YAML 前置元数据，支持导入、导出、版本和启停。
 11. Routines：Cron、时区、手动测试、启停、运行历史、重试和幂等键。
 12. 审计与成本：事件时间线、模型用量、工具参数摘要、审批、错误、产物校验值和预算告警。
-13. Docker Compose：API、Worker、PostgreSQL、Redis、MinIO，可选择启用浏览器执行容器。
+13. Docker Compose：API、Worker、PostgreSQL、Valkey、SeaweedFS，可选择启用浏览器执行容器。
 14. Windows 安装：Electron 桌面开发与打包脚本，支持连接本地或远程 API。
 
 ### 2.2 后续扩展但预留协议
@@ -51,8 +51,8 @@ Windows Electron Desktop
   v
 FastAPI Control Plane
   |-- PostgreSQL: durable product state and audit events
-  |-- Redis: queue, cancellation and short-lived coordination
-  |-- MinIO/S3: attachments, screenshots and generated artifacts
+  |-- Valkey: Redis-compatible short-lived coordination
+  |-- SeaweedFS/S3: attachments, screenshots and generated artifacts
   |-- Model Gateway: explicit provider adapters and capability registry
   |-- Policy Engine: deterministic rules, budgets and approvals
   `-- Scheduler: durable routine dispatch
@@ -67,7 +67,7 @@ Agent Worker Pool
 
 桌面端不保存模型密钥。密钥进入服务端后由 Secret Store 接口保存。开发版使用服务端环境变量引用，Windows 单机增强版可以使用 Credential Manager，团队版可接入 Vault。数据库只保存 `secret_ref`，日志和模型上下文不得出现密钥明文。
 
-控制面和 Worker 使用相同 Python 包中的领域协议。首版队列使用 Redis Streams，任务与事件的真实状态以 PostgreSQL 为准，避免 Redis 丢失后任务永久消失。Worker 领取租约后定期续租；租约过期的任务可恢复到上一个检查点。
+控制面和 Worker 使用相同 Python 包中的领域协议。首版执行队列直接使用 PostgreSQL 行锁与租约，Valkey 提供 Redis Streams 兼容扩展点和短期协调；任务与事件的真实状态始终以 PostgreSQL 为准。Worker 领取租约后定期续租；租约过期的任务可恢复到上一个检查点。
 
 ## 4. 数据链路
 
@@ -75,7 +75,7 @@ Agent Worker Pool
 
 1. 桌面端提交消息、附件引用、选定 Bot 和可选模型覆盖。
 2. API 创建 Message、Task 和第一条 TaskEvent，事务提交后写入派发箱。
-3. Dispatcher 将任务 ID 放入 Redis Stream。
+3. Worker 从 PostgreSQL 中以 `FOR UPDATE SKIP LOCKED` 领取到期租约；横向扩展时可启用 Valkey Streams 通知降低轮询延迟。
 4. Worker 领取任务并加载 Bot 配置、相关记忆、Skill、审批策略和预算。
 5. Model Gateway 根据显式模型 ID 调用对应供应商，不进行未授权降级。
 6. 模型产生文本或 Tool Call。Policy Engine 先做参数级规则判断。
