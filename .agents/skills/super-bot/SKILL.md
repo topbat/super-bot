@@ -1,0 +1,249 @@
+---
+name: super-bot-conventions
+description: Development conventions and patterns for super-bot. Python project with conventional commits.
+---
+
+# Super Bot Conventions
+
+> Generated from [topbat/super-bot](https://github.com/topbat/super-bot) on 2026-08-23
+
+## Overview
+
+This skill teaches Claude the development patterns and conventions used in super-bot.
+
+## Tech Stack
+
+- **Primary Language**: Python
+- **Architecture**: feature-based module organization
+- **Test Location**: separate
+- **Test Framework**: vitest
+
+## When to Use This Skill
+
+Activate this skill when:
+- Making changes to this repository
+- Adding new features following established patterns
+- Writing tests that match project conventions
+- Creating commits with proper message format
+
+## Commit Conventions
+
+Follow these commit message conventions based on 13 analyzed commits.
+
+### Commit Style: Conventional Commits
+
+### Prefixes Used
+
+- `feat`
+- `build`
+- `docs`
+
+### Message Guidelines
+
+- Average message length: ~37 characters
+- Keep first line concise and descriptive
+- Use imperative mood ("Add feature" not "Added feature")
+
+
+*Commit message example*
+
+```text
+docs: add implementation plan
+```
+
+*Commit message example*
+
+```text
+build: scaffold super bot workspace
+```
+
+*Commit message example*
+
+```text
+feat: define durable agent domain
+```
+
+*Commit message example*
+
+```text
+feat: add durable repositories
+```
+
+*Commit message example*
+
+```text
+feat: add explicit domestic model gateway
+```
+
+*Commit message example*
+
+```text
+feat: enforce approvals and hard budgets
+```
+
+*Commit message example*
+
+```text
+feat: execute auditable agent tool loops
+```
+
+*Commit message example*
+
+```text
+feat: expose super bot control API
+```
+
+## Architecture
+
+### Project Structure: Monorepo
+
+This project uses **feature-based** module organization.
+
+### Configuration Files
+
+- `apps/desktop/package.json`
+- `apps/desktop/tsconfig.json`
+- `apps/desktop/vitest.config.ts`
+- `docker-compose.yml`
+- `package.json`
+- `packages/contracts/package.json`
+- `packages/contracts/tsconfig.json`
+
+### Guidelines
+
+- Group related code by feature/domain
+- Each feature folder should be self-contained
+- Shared utilities go in a common/shared folder
+
+## Code Style
+
+### Language: Python
+
+### Naming Conventions
+
+| Element | Convention |
+|---------|------------|
+| Files | camelCase |
+| Functions | camelCase |
+| Classes | PascalCase |
+| Constants | SCREAMING_SNAKE_CASE |
+
+### Import Style: Relative Imports
+
+### Export Style: Named Exports
+
+
+*Preferred import style*
+
+```typescript
+// Use relative imports
+import { Button } from '../components/Button'
+import { useAuth } from './hooks/useAuth'
+```
+
+*Preferred export style*
+
+```typescript
+// Use named exports
+export function calculateTotal() { ... }
+export const TAX_RATE = 0.1
+export interface Order { ... }
+```
+
+## Testing
+
+### Test Framework: vitest
+
+### File Pattern: `*.test.tsx`
+
+### Test Types
+
+- **Unit tests**: Test individual functions and components in isolation
+- **Integration tests**: Test interactions between multiple components/services
+- **E2e tests**: Test complete user flows through the application
+
+
+*Test file structure*
+
+```typescript
+import { describe, it, expect } from 'vitest'
+
+describe('MyFunction', () => {
+  it('should return expected result', () => {
+    const result = myFunction(input)
+    expect(result).toBe(expected)
+  })
+})
+```
+
+## Error Handling
+
+### Error Handling Style: Try-Catch Blocks
+
+This project uses **custom error classes** for specific error types.
+
+
+*Standard error handling pattern*
+
+```typescript
+try {
+  const result = await riskyOperation()
+  return result
+} catch (error) {
+  console.error('Operation failed:', error)
+  throw new Error('User-friendly message')
+}
+```
+
+## Common Workflows
+
+These workflows were detected from analyzing commit patterns.
+
+### Feature Development
+
+Standard feature implementation workflow
+
+**Frequency**: ~25 times per month
+
+**Steps**:
+1. Add feature implementation
+2. Add tests for feature
+3. Update documentation
+
+**Files typically involved**:
+- `packages/contracts/src/*`
+- `apps/desktop/*`
+- `apps/desktop/electron/*`
+- `**/*.test.*`
+- `**/api/**`
+
+**Example commit sequence**:
+```
+docs: add implementation plan
+build: scaffold super bot workspace
+feat: define durable agent domain
+```
+
+
+## Best Practices
+
+Based on analysis of the codebase, follow these practices:
+
+### Do
+
+- Use conventional commit format (feat:, fix:, etc.)
+- Keep feature code co-located in feature folders
+- Write tests using vitest
+- Follow *.test.tsx naming pattern
+- Use camelCase for file names
+- Prefer named exports
+
+### Don't
+
+- Don't write vague commit messages
+- Don't skip tests for new features
+- Don't deviate from established patterns without discussion
+
+---
+
+*This skill was auto-generated by [ECC Tools](https://ecc.tools). Review and customize as needed for your team.*
